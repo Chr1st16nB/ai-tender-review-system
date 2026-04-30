@@ -1,0 +1,1445 @@
+{
+  "name": "Multi-Agent AI Tender Review System V1",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "const rawText = ($json.master_text || '').trim();\nconst languageHint = $json.language_hint || 'FR';\n\nconst cleanedText = rawText\n  .replace(/\\r/g, '')\n  .replace(/[ \\t]+/g, ' ')\n  .replace(/\\n{3,}/g, '\\n\\n')\n  .trim();\n\nconst sections = {\n  title: cleanedText.split('\\n')[0] || '',\n  hasDeadline: /date limite|deadline|closing date|au plus tard/i.test(cleanedText),\n  hasLocation: /Kinshasa|Lubumbashi|RDC|Congo|Ngaliema|Haut-Katanga|Lualaba/i.test(cleanedText),\n  hasBudget: /budget|USD|CDF|montant|financement/i.test(cleanedText),\n  hasWorks: /travaux|construction|ouvrages|assainissement|services|supply/i.test(cleanedText)\n};\n\nreturn [\n  {\n    json: {\n      masterText: cleanedText,\n      language: languageHint,\n      sections,\n      metadata: {\n        length: cleanedText.length,\n        wordCount: cleanedText ? cleanedText.split(/\\s+/).length : 0\n      }\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -160,
+        -2144
+      ],
+      "id": "0896a2b4-7f70-4766-8ede-9258c7f3fbe4",
+      "name": "Prepare Master Tender Text"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5b070c60-59d0-4bcc-b77a-fbfe1ff9ea3e",
+              "name": "clean_text",
+              "value": "={{ \n  ($json.text || '')\n    .replace(/\\n/g, ' ')\n    .replace(/\\s+/g, ' ')\n    .trim()\n}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -448,
+        -2368
+      ],
+      "id": "1a660fd0-6d39-4a43-943f-d4de99303ac3",
+      "name": "Clean Extracted Text"
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = ($json.text || '').trim();\n\nconst textLength = text.length;\nconst wordCount = text ? text.split(/\\s+/).length : 0;\n\nconst hasEnoughText = textLength > 500 && wordCount > 80;\n\nconst weirdCharMatches = text.match(/[�□■▪▫◦•]/g) || [];\nconst weirdCharRatio = textLength ? weirdCharMatches.length / textLength : 1;\n\nconst likelyBadExtraction =\n  !hasEnoughText ||\n  weirdCharRatio > 0.02 ||\n  /^[\\[\\]\\(\\)\\-–—_\\s.:/\\\\|]+$/.test(text);\n\nreturn [\n  {\n    json: {\n      text,\n      textLength,\n      wordCount,\n      hasEnoughText,\n      weirdCharRatio,\n      likelyBadExtraction,\n      route: likelyBadExtraction ? 'ocr' : 'clean'\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -896,
+        -2192
+      ],
+      "id": "1af6a9d9-1355-4a51-bfcc-2cb721ff2e90",
+      "name": "Check Extracted Text"
+    },
+    {
+      "parameters": {
+        "url": "https://api.pdf.co/v1/pdf/convert/to/text",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "christianmangala@gmail.com_fIStc7fiGlkcGaD8wRdr1wnh26pa0NyscQbZUhUsFEjgvwAfFy8LG1EkZerLmuO8"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "value": "={   \"file\": \"={{ $binary.data.data }}\",   \"name\": \"tender.pdf\" }"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -384,
+        -1984
+      ],
+      "id": "68d2b18c-adcc-45a5-beb5-36857753b630",
+      "name": "PDF.co OCR"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      master_text: $json.clean_text,\n      language_hint: $json.clean_text.includes(\"Avis d’Appel\") ? \"FR\" : \"EN\"\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -224,
+        -2368
+      ],
+      "id": "669be3b6-43a8-4d5a-8742-11f011b27d95",
+      "name": "Normalize Language Input"
+    },
+    {
+      "parameters": {
+        "sendTo": "christianmangala@hotmail.com",
+        "subject": "=Tender Executive Review - {{$json.tender_title || 'Tender'}}",
+        "message": "=<div style=\"font-family: Arial, sans-serif; max-width: 800px; margin: auto; padding: 20px; color: #333;\">\n  <h2 style=\"color:#1f4e79;\">Tender Analysis Completed</h2>\n\n  <p>Your tender has been successfully analyzed and the PDF report is attached.</p>\n\n  <p><strong>Decision:</strong> {{$node[\"Code - Tender Scoring Engine\"].json[\"ai_decision\"]}}</p>\n  <p><strong>Final Score:</strong> {{$node[\"Code - Tender Scoring Engine\"].json[\"final_score\"]}} / 100</p>\n  <p><strong>Reason:</strong> {{$node[\"Code - Tender Scoring Engine\"].json[\"decision_reason\"]}}</p>\n\n  <p><strong>Warnings:</strong><br>\n  {{$node[\"Code - Flatten for Report\"].json[\"warnings\"] || \"None\"}}</p>\n\n  <p>Please find the full tender report attached as a PDF.</p>\n\n  <br>\n  <p style=\"color:#777;\">AI Tender Review System</p>\n</div>",
+        "options": {
+          "appendAttribution": false,
+          "attachmentsUi": {
+            "attachmentsBinary": [
+              {}
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        4864,
+        -1744
+      ],
+      "id": "4a85cc3b-b01d-44cc-8849-3480efff0ae5",
+      "name": "Email Tender Report",
+      "webhookId": "cb422fe6-4f79-4130-bade-7c20ecaac12f",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "rAX1U0wjIZdDomlR",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "AI Tender Review System (V1)\n\nPurpose:\nAutomate tender analysis and decision-making.\n\nInput:\nTender document (PDF)\n\nOutput:\nExecutive report + Go/No-Go decision\n\nSupported languages:\nFR / EN",
+        "height": 256,
+        "width": 352
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1600,
+        -3296
+      ],
+      "typeVersion": 1,
+      "id": "ce9addfe-7eff-4035-bd17-3561fa1713f9",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "11UPjnt5mUKpU8ZIp2KpTzPFmFJEiKBJy",
+          "mode": "list",
+          "cachedResultName": "TENDER-FOLDERS",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/11UPjnt5mUKpU8ZIp2KpTzPFmFJEiKBJy"
+        },
+        "event": "fileCreated",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1888,
+        -2464
+      ],
+      "id": "c1bb63b3-01f4-4899-8a12-a5648cc69127",
+      "name": "Google Drive Trigger",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "wKv8q4BoxYm2bj33",
+          "name": "Google Drive OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $('Google Drive Trigger').item.json.id }}",
+          "mode": "id"
+        },
+        "options": {
+          "binaryPropertyName": "=data"
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -1712,
+        -2464
+      ],
+      "id": "b53716ea-c8ec-486d-ba7a-88c713023709",
+      "name": "Download file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "wKv8q4BoxYm2bj33",
+          "name": "Google Drive OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.pdf.co/v1/pdf/convert/to/text",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "=christianmangala@gmail.com_yzMssO4EqC2aFJR6h9B8du51jODRPxAoAkFcNPsB0Adf7Lx8GDx3rAigQhz4w3LN"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  {\n    \"url\": $json.url,\n    \"async\": false\n  }\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -1328,
+        -2464
+      ],
+      "id": "404f671c-8708-4cf1-aebd-db2fb070918f",
+      "name": "Extract PDF Text"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.pdf.co/v1/file/upload",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "=christianmangala@gmail.com_yzMssO4EqC2aFJR6h9B8du51jODRPxAoAkFcNPsB0Adf7Lx8GDx3rAigQhz4w3LN"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            },
+            {
+              "name": "name",
+              "value": "={{$binary.data.fileName}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -1536,
+        -2464
+      ],
+      "id": "e2b91cec-1b15-46c4-8a4e-2bf3595136b8",
+      "name": "Upload PDF to PDF.co"
+    },
+    {
+      "parameters": {
+        "url": "={{$json.url}}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "=data"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -1120,
+        -2464
+      ],
+      "id": "755605ce-c22c-4762-8d4f-619abe161edb",
+      "name": "Download TXT Result"
+    },
+    {
+      "parameters": {
+        "jsCode": "const buffer = await this.helpers.getBinaryDataBuffer(0, 'data');\n\nreturn [\n  {\n    json: {\n      text: buffer.toString('utf8')\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1120,
+        -2176
+      ],
+      "id": "9c358e7b-10d6-42e5-9548-ea2386df91d9",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.route}}",
+                    "rightValue": "=clean",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "2c53a519-e2b3-4426-848b-2bedef5d2950"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "clean"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "30cc9175-752f-4cb5-8df2-804cdf338b63",
+                    "leftValue": "={{$json.route}}",
+                    "rightValue": "ocr",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "ocr"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -688,
+        -2192
+      ],
+      "id": "17e2b437-0f86-4c43-b359-633976c8c96d",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "jsCode": "const html = `\n<div style=\"font-family: Arial, sans-serif; padding: 30px; color: #222;\">\n\n  <h1 style=\"color:#1f4e79;\">Tender Executive Review</h1>\n  <p><strong>Generated by:</strong> Multi-Agent AI Tender Review System</p>\n\n  <hr>\n\n  <h2>1. Executive Decision</h2>\n  <p><strong>Final Score:</strong> ${$json.final_score || \"N/A\"}/100</p>\n  <p><strong>Recommendation:</strong> ${$json.decision || \"N/A\"}</p>\n  <p><strong>Confidence:</strong> ${$json.confidence || \"N/A\"}</p>\n\n  <h2>2. Tender Information</h2>\n  <p><strong>Title:</strong> ${$json.tender_title || \"Not specified\"}</p>\n  <p><strong>Issuing Entity:</strong> ${$json.issuing_entity || \"Not specified\"}</p>\n  <p><strong>Sector:</strong> ${$json.sector || \"Not specified\"}</p>\n  <p><strong>Subsector:</strong> ${$json.subsector || \"Not specified\"}</p>\n  <p><strong>Country:</strong> ${$json.country || \"Not specified\"}</p>\n  <p><strong>Deadline:</strong> ${$json.submission_deadline || \"Not specified\"}</p>\n  <p><strong>Language:</strong> ${$json.language || \"Not specified\"}</p>\n  <p><strong>Tender Type:</strong> ${$json.tender_type || \"Not specified\"}</p>\n  <p><strong>Delivery Location:</strong> ${$json.delivery_location || \"Not specified\"}</p>\n\n  <h2>3. Executive Summary</h2>\n  <p>${$json.decision_reason || $json.metadata_summary || \"No summary available.\"}</p>\n\n  <h2>4. Agent Scores</h2>\n  <table style=\"width:100%; border-collapse: collapse;\">\n    <tr style=\"background:#1f4e79; color:white;\">\n      <th style=\"padding:8px; border:1px solid #ccc;\">Area</th>\n      <th style=\"padding:8px; border:1px solid #ccc;\">Score</th>\n      <th style=\"padding:8px; border:1px solid #ccc;\">Status</th>\n    </tr>\n\n    <tr>\n      <td style=\"padding:8px; border:1px solid #ccc;\">Compliance</td>\n      <td style=\"padding:8px; border:1px solid #ccc;\">${$json.compliance_score || \"N/A\"}</td>\n      <td style=\"padding:8px; border:1px solid #ccc;\">${$json.compliance_status || \"N/A\"}</td>\n    </tr>\n\n    <tr>\n      <td style=\"padding:8px; border:1px solid #ccc;\">Technical Fit</td>\n      <td style=\"padding:8px; border:1px solid #ccc;\">${$json.technical_score || \"N/A\"}</td>\n      <td style=\"padding:8px; border:1px solid #ccc;\">${$json.technical_status || \"N/A\"}</td>\n    </tr>\n\n    <tr>\n      <td style=\"padding:8px; border:1px solid #ccc;\">Financial</td>\n      <td style=\"padding:8px; border:1px solid #ccc;\">${$json.financial_score || \"N/A\"}</td>\n      <td style=\"padding:8px; border:1px solid #ccc;\">${$json.financial_status || \"N/A\"}</td>\n    </tr>\n\n    <tr>\n      <td style=\"padding:8px; border:1px solid #ccc;\">Risk</td>\n      <td style=\"padding:8px; border:1px solid #ccc;\">${$json.risk_score || \"N/A\"}</td>\n      <td style=\"padding:8px; border:1px solid #ccc;\">${$json.risk_status || \"N/A\"}</td>\n    </tr>\n\n    <tr>\n      <td style=\"padding:8px; border:1px solid #ccc;\">Opportunity</td>\n      <td style=\"padding:8px; border:1px solid #ccc;\">${$json.opportunity_score || \"N/A\"}</td>\n      <td style=\"padding:8px; border:1px solid #ccc;\">${$json.opportunity_status || \"N/A\"}</td>\n    </tr>\n  </table>\n\n  <h2>5. Key Red Flags</h2>\n  <p><strong>Compliance:</strong> ${$json.compliance_red_flags || \"None identified\"}</p>\n  <p><strong>Risk:</strong> ${$json.risk_red_flags || \"None identified\"}</p>\n\n  <h2>6. Recommendation</h2>\n  <p><strong>${$json.decision || \"REVIEW\"}</strong></p>\n\n</div>\n`;\n\nreturn [\n  {\n    json: {\n      html\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4224,
+        -1744
+      ],
+      "id": "e1d2c690-7a4c-4142-9fb8-f8a644dee159",
+      "name": "Build HTML Report"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.pdf.co/v1/pdf/convert/from/html",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "=x-api-key",
+              "value": "christianmangala@gmail.com_yzMssO4EqC2aFJR6h9B8du51jODRPxAoAkFcNPsB0Adf7Lx8GDx3rAigQhz4w3LN"
+            },
+            {
+              "name": "=Content-Type",
+              "value": "=application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { html: $json.html, name: \"tender-report.pdf\" } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        4432,
+        -1744
+      ],
+      "id": "dd34d5c8-e050-41d6-9693-56948d130342",
+      "name": "Convert HTML to PDF"
+    },
+    {
+      "parameters": {
+        "url": "={{$json.url}}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        4656,
+        -1744
+      ],
+      "id": "e433739e-0423-4950-9ada-d8e55a1a05a1",
+      "name": "Download Generated PDF"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4",
+          "mode": "list",
+          "cachedResultName": "GPT-4"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=You are a Tender Metadata Extraction Agent.\n\nYour task is to extract key tender information from the document.\n\nIMPORTANT RULES:\n- Return ONLY valid JSON.\n- Do NOT use markdown.\n- Do NOT explain your answer.\n- NEVER return \"not specified\" unless the information is truly absent.\n- If information is partially available, infer it from the document context.\n- Use French or English values depending on the document language.\n\nReturn this exact JSON structure:\n\n{\n  \"agent_name\": \"Metadata Agent\",\n  \"tender_title\": \"\",\n  \"sector\": \"\",\n  \"subsector\": \"\",\n  \"country\": \"\",\n  \"issuing_entity\": \"\",\n  \"estimated_value\": \"\",\n  \"currency\": \"\",\n  \"submission_deadline\": \"\",\n  \"language\": \"\",\n  \"tender_type\": \"\",\n  \"delivery_location\": \"\",\n  \"contract_duration\": \"\",\n  \"summary\": \"\"\n}\n\nDOCUMENT:\n{{ $json.full_text }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        1456,
+        -2720
+      ],
+      "id": "8319e6a8-7f03-48fd-8b7c-462466d68c71",
+      "name": "Metadata Agent",
+      "credentials": {
+        "openAiApi": {
+          "id": "6UYEMUZnKEvnVaAT",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4",
+          "mode": "list",
+          "cachedResultName": "GPT-4"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=You are a Tender Compliance Review Agent.\n\nYour task is to evaluate whether the tender is administratively and procedurally compliant.\n\nAnalyze:\n- Eligibility requirements\n- Administrative documents required\n- Submission instructions\n- Deadlines\n- Required forms\n- Legal or regulatory requirements\n- Mandatory certifications\n- Disqualification risks\n- Missing information\n\nIMPORTANT RULES:\n- Return ONLY valid JSON.\n- Do NOT use markdown.\n- Do NOT explain outside the JSON.\n- Score must be between 0 and 100.\n- status must be one of: \"compliant\", \"partially_compliant\", \"non_compliant\".\n\nReturn this exact JSON structure:\n\n{\n  \"agent_name\": \"Compliance Agent\",\n  \"score\": 0,\n  \"status\": \"\",\n  \"summary\": \"\",\n  \"key_signals\": [],\n  \"red_flags\": [],\n  \"missing_information\": [],\n  \"confidence\": \"\"\n}\n\nDOCUMENT:\n{{ $json.full_text }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        1440,
+        -2528
+      ],
+      "id": "422c4be2-6d73-4857-be70-c694dfa3231c",
+      "name": "Compliance Agent",
+      "credentials": {
+        "openAiApi": {
+          "id": "6UYEMUZnKEvnVaAT",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4",
+          "mode": "list",
+          "cachedResultName": "GPT-4"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=You are a Technical Fit Evaluation Agent.\n\nYour task is to assess whether the tender is technically feasible for a company to pursue.\n\nAnalyze:\n- Scope of work\n- Technical requirements\n- Required expertise\n- Equipment, tools, or technology needed\n- Delivery complexity\n- Implementation risks\n- Site/location constraints\n- Required methodology\n- Technical documentation required\n\nIMPORTANT RULES:\n- Return ONLY valid JSON.\n- Do NOT use markdown.\n- Do NOT explain outside the JSON.\n- Score must be between 0 and 100.\n- status must be one of: \"strong_fit\", \"moderate_fit\", \"weak_fit\", \"not_fit\".\n\nReturn this exact JSON structure:\n\n{\n  \"agent_name\": \"Technical Fit Agent\",\n  \"score\": 0,\n  \"status\": \"\",\n  \"summary\": \"\",\n  \"key_signals\": [],\n  \"red_flags\": [],\n  \"missing_information\": [],\n  \"confidence\": \"\"\n}\n\nDOCUMENT:\n{{ $json.full_text }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        1392,
+        -2352
+      ],
+      "id": "d5a6534e-3785-4bad-a2b2-c24d3c063192",
+      "name": "Technical Fit Agent",
+      "credentials": {
+        "openAiApi": {
+          "id": "6UYEMUZnKEvnVaAT",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4",
+          "mode": "list",
+          "cachedResultName": "GPT-4"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=You are a Tender Financial Evaluation Agent.\n\nYour task is to evaluate the financial attractiveness and commercial risk of the tender.\n\nAnalyze:\n- Estimated contract value\n- Pricing structure\n- Payment terms\n- Bid security or guarantees\n- Performance guarantees\n- Penalties\n- Currency\n- Taxes or duties\n- Cost risks\n- Financial feasibility\n- Profitability signals\n\nIMPORTANT RULES:\n- Return ONLY valid JSON.\n- Do NOT use markdown.\n- Do NOT explain outside the JSON.\n- Score must be between 0 and 100.\n- status must be one of: \"financially_attractive\", \"moderate_financial_value\", \"financially_risky\", \"not_attractive\".\n\nReturn this exact JSON structure:\n\n{\n  \"agent_name\": \"Financial Agent\",\n  \"score\": 0,\n  \"status\": \"\",\n  \"summary\": \"\",\n  \"key_signals\": [],\n  \"red_flags\": [],\n  \"missing_information\": [],\n  \"confidence\": \"\"\n}\n\nDOCUMENT:\n{{ $json.full_text }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        1392,
+        -2160
+      ],
+      "id": "bca5191e-94c2-449a-955f-c58bd305354c",
+      "name": "Financial Agent",
+      "credentials": {
+        "openAiApi": {
+          "id": "6UYEMUZnKEvnVaAT",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4",
+          "mode": "list",
+          "cachedResultName": "GPT-4"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=You are a Tender Risk Evaluation Agent.\n\nYour task is to identify and evaluate risks associated with the tender.\n\nAnalyze:\n- Legal risks\n- Contractual risks\n- Operational risks\n- Delivery risks\n- Financial risks\n- Compliance risks\n- Timeline risks\n- Technical risks\n- Reputation risks\n- Ambiguous or unfavorable clauses\n\nIMPORTANT RULES:\n- Return ONLY valid JSON.\n- Do NOT use markdown.\n- Do NOT explain outside the JSON.\n- Score must be between 0 and 100.\n- Higher score means LOWER risk.\n- status must be one of: \"low_risk\", \"medium_risk\", \"high_risk\", \"critical_risk\".\n\nReturn this exact JSON structure:\n\n{\n  \"agent_name\": \"Risk Evaluation Agent\",\n  \"score\": 0,\n  \"status\": \"\",\n  \"summary\": \"\",\n  \"key_signals\": [],\n  \"red_flags\": [],\n  \"missing_information\": [],\n  \"confidence\": \"\"\n}\n\nDOCUMENT:\n{{ $json.full_text }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        1392,
+        -1920
+      ],
+      "id": "9dae1935-4734-4e95-b540-cd9d0e5fa219",
+      "name": "Risk Agent",
+      "credentials": {
+        "openAiApi": {
+          "id": "6UYEMUZnKEvnVaAT",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4",
+          "mode": "list",
+          "cachedResultName": "GPT-4"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=You are a Tender Opportunity Evaluation Agent.\n\nYour task is to evaluate the business opportunity of the tender.\n\nAnalyze:\n- Strategic value\n- Revenue potential\n- Market positioning\n- Long-term relationship potential\n- Repeat business opportunity\n- Visibility and reputation benefits\n- Expansion opportunities\n- Alignment with company capabilities\n- Competitive advantage\n\nIMPORTANT RULES:\n- Return ONLY valid JSON.\n- Do NOT use markdown.\n- Do NOT explain outside the JSON.\n- Score must be between 0 and 100.\n- status must be one of: \"high_opportunity\", \"moderate_opportunity\", \"low_opportunity\", \"poor_opportunity\".\n\nReturn this exact JSON structure:\n\n{\n  \"agent_name\": \"Opportunity Agent\",\n  \"score\": 0,\n  \"status\": \"\",\n  \"summary\": \"\",\n  \"key_signals\": [],\n  \"red_flags\": [],\n  \"missing_information\": [],\n  \"confidence\": \"\"\n}\n\nDOCUMENT:\n{{ $json.full_text }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        1392,
+        -1712
+      ],
+      "id": "47114b2a-454a-4b77-b12d-fab91ef6dce9",
+      "name": "Opportunity Agent",
+      "credentials": {
+        "openAiApi": {
+          "id": "6UYEMUZnKEvnVaAT",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2192,
+        -2656
+      ],
+      "id": "c0bd94dd-c49e-44c3-836f-035b348249ca",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json.output?.[0]?.content?.[0]?.text || '';\n\nif (!raw) {\n  throw new Error('Metadata raw text not found at output[0].content[0].text');\n}\n\nlet cleaned = raw.trim();\n\nif (cleaned.startsWith('```json')) {\n  cleaned = cleaned.replace(/^```json\\s*/i, '').replace(/\\s*```$/, '');\n} else if (cleaned.startsWith('```')) {\n  cleaned = cleaned.replace(/^```\\s*/i, '').replace(/\\s*```$/, '');\n}\n\nlet parsed;\n\ntry {\n  parsed = JSON.parse(cleaned);\n} catch (error) {\n  throw new Error('Metadata JSON parse failed: ' + error.message + '\\nRaw output: ' + raw);\n}\n\nreturn [{ json: parsed }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1952,
+        -2736
+      ],
+      "id": "d7c5ecac-54fc-4236-9d03-c201e55b726d",
+      "name": "Parse Metadata JSON"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json.output?.[0]?.content?.[0]?.text || '';\n\nif (!raw) {\n  throw new Error('Compliance raw text not found at output[0].content[0].text');\n}\n\nlet cleaned = raw.trim();\n\nif (cleaned.startsWith('```json')) {\n  cleaned = cleaned.replace(/^```json\\s*/i, '').replace(/\\s*```$/, '');\n} else if (cleaned.startsWith('```')) {\n  cleaned = cleaned.replace(/^```\\s*/i, '').replace(/\\s*```$/, '');\n}\n\nlet parsed;\n\ntry {\n  parsed = JSON.parse(cleaned);\n} catch (error) {\n  throw new Error('Compliance JSON parse failed: ' + error.message + '\\nRaw output: ' + raw);\n}\n\nreturn [{ json: parsed }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1936,
+        -2544
+      ],
+      "id": "cf782657-4f03-43d5-a8d3-67d4828f1ed6",
+      "name": "Parse Compliance JSON"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json.output?.[0]?.content?.[0]?.text || '';\n\nif (!raw) {\n  throw new Error('Technical Fit raw text not found at output[0].content[0].text');\n}\n\nlet cleaned = raw.trim();\n\nif (cleaned.startsWith('```json')) {\n  cleaned = cleaned.replace(/^```json\\s*/i, '').replace(/\\s*```$/, '');\n} else if (cleaned.startsWith('```')) {\n  cleaned = cleaned.replace(/^```\\s*/i, '').replace(/\\s*```$/, '');\n}\n\nlet parsed;\n\ntry {\n  parsed = JSON.parse(cleaned);\n} catch (error) {\n  throw new Error('Technical Fit JSON parse failed: ' + error.message + '\\nRaw output: ' + raw);\n}\n\nreturn [{ json: parsed }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1936,
+        -2352
+      ],
+      "id": "e6c7dc25-8397-4375-a5c3-c4e3e6cf5e98",
+      "name": "Parse Technical Fit JSON"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json.output?.[0]?.content?.[0]?.text || '';\n\nif (!raw) {\n  return [{\n    json: {\n      agent_name: \"Financial Agent\",\n      score: 50,\n      status: \"moderate\",\n      summary: \"Financial agent returned no output. Neutral fallback applied.\",\n      key_signals: [],\n      red_flags: [\"No financial analysis returned\"],\n      missing_information: [\"Structured financial evaluation unavailable\"],\n      confidence: \"low\"\n    }\n  }];\n}\n\nlet cleaned = raw.trim();\n\nif (cleaned.startsWith('```json')) {\n  cleaned = cleaned.replace(/^```json\\s*/i, '').replace(/\\s*```$/, '');\n} else if (cleaned.startsWith('```')) {\n  cleaned = cleaned.replace(/^```\\s*/i, '').replace(/\\s*```$/, '');\n}\n\ntry {\n  return [{ json: JSON.parse(cleaned) }];\n} catch (error) {\n  return [{\n    json: {\n      agent_name: \"Financial Agent\",\n      score: 50,\n      status: \"moderate\",\n      summary: \"Financial agent did not return valid JSON. Neutral fallback applied.\",\n      key_signals: [],\n      red_flags: [\"Invalid JSON output from Financial Agent\"],\n      missing_information: [\"Structured financial evaluation unavailable\"],\n      confidence: \"low\"\n    }\n  }];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1856,
+        -2160
+      ],
+      "id": "45cdfc12-9815-48de-a2c4-9f4903472c84",
+      "name": "Parse Financial JSON"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json.output?.[0]?.content?.[0]?.text || '';\n\nif (!raw) {\n  throw new Error('Risk raw text not found at output[0].content[0].text');\n}\n\nlet cleaned = raw.trim();\n\nif (cleaned.startsWith('```json')) {\n  cleaned = cleaned.replace(/^```json\\s*/i, '').replace(/\\s*```$/, '');\n} else if (cleaned.startsWith('```')) {\n  cleaned = cleaned.replace(/^```\\s*/i, '').replace(/\\s*```$/, '');\n}\n\nlet parsed;\n\ntry {\n  parsed = JSON.parse(cleaned);\n} catch (error) {\n  throw new Error('Risk JSON parse failed: ' + error.message + '\\nRaw output: ' + raw);\n}\n\nreturn [{ json: parsed }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1792,
+        -1920
+      ],
+      "id": "bb470d56-666b-4094-9ca3-1f31cb9a0884",
+      "name": "Parse Risk JSON"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json.output?.[0]?.content?.[0]?.text || '';\n\nif (!raw) {\n  throw new Error('Opportunity raw text not found at output[0].content[0].text');\n}\n\nlet cleaned = raw.trim();\n\nif (cleaned.startsWith('```json')) {\n  cleaned = cleaned.replace(/^```json\\s*/i, '').replace(/\\s*```$/, '');\n} else if (cleaned.startsWith('```')) {\n  cleaned = cleaned.replace(/^```\\s*/i, '').replace(/\\s*```$/, '');\n}\n\nlet parsed;\n\ntry {\n  parsed = JSON.parse(cleaned);\n} catch (error) {\n  throw new Error('Opportunity JSON parse failed: ' + error.message + '\\nRaw output: ' + raw);\n}\n\nreturn [{ json: parsed }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1792,
+        -1712
+      ],
+      "id": "afd82b21-66ba-4d65-8776-1785153b1a7b",
+      "name": "Parse Opportunity JSON"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\n\n// --- Safe score extraction\nconst complianceScore = Number(item.compliance?.score || 0);\nconst technicalFitScore = Number(item.technical_fit?.score || 0);\nconst financialScore = Number(item.financial?.score || 0);\nconst riskScore = Number(item.risk?.score || 0);\nconst opportunityScore = Number(item.opportunity?.score || 0);\n\n// --- Weights\nconst weights = {\n  compliance: 0.25,\n  technical_fit: 0.25,\n  financial: 0.20,\n  risk: 0.15,\n  opportunity: 0.15,\n};\n\n// --- Weighted score\nconst finalScore =\n  (complianceScore * weights.compliance) +\n  (technicalFitScore * weights.technical_fit) +\n  (financialScore * weights.financial) +\n  (riskScore * weights.risk) +\n  (opportunityScore * weights.opportunity);\n\n// --- Counts\nconst redFlagCount =\n  (item.compliance?.red_flags?.length || 0) +\n  (item.technical_fit?.red_flags?.length || 0) +\n  (item.financial?.red_flags?.length || 0) +\n  (item.risk?.red_flags?.length || 0) +\n  (item.opportunity?.red_flags?.length || 0);\n\nconst missingInfoCount =\n  (item.compliance?.missing_information?.length || 0) +\n  (item.technical_fit?.missing_information?.length || 0) +\n  (item.financial?.missing_information?.length || 0) +\n  (item.risk?.missing_information?.length || 0) +\n  (item.opportunity?.missing_information?.length || 0);\n\n// --- Confidence check\nconst confidenceValues = [\n  item.compliance?.confidence,\n  item.technical_fit?.confidence,\n  item.financial?.confidence,\n  item.risk?.confidence,\n  item.opportunity?.confidence,\n].map(v => String(v || '').toLowerCase());\n\nconst lowConfidenceCount = confidenceValues.filter(v =>\n  v.includes('low') || v.includes('medium')\n).length;\n\n// --- Decision logic\nlet aiDecision = \"REVIEW\";\nlet decisionReason = \"Balanced result. Requires management review.\";\n\nif (\n  finalScore >= 80 &&\n  redFlagCount <= 2 &&\n  missingInfoCount <= 3 &&\n  complianceScore >= 70 &&\n  technicalFitScore >= 70\n) {\n  aiDecision = \"GO\";\n  decisionReason = \"Strong overall tender profile with manageable risk and sufficient alignment.\";\n} else if (\n  finalScore < 60 ||\n  complianceScore < 50 ||\n  technicalFitScore < 50 ||\n  redFlagCount >= 6\n) {\n  aiDecision = \"NO-GO\";\n  decisionReason = \"Tender presents weak alignment, major compliance/technical concerns, or excessive risk.\";\n}\n\n// --- Aggregate lists\nconst aggregatedRedFlags = [\n  ...(item.compliance?.red_flags || []),\n  ...(item.technical_fit?.red_flags || []),\n  ...(item.financial?.red_flags || []),\n  ...(item.risk?.red_flags || []),\n  ...(item.opportunity?.red_flags || []),\n];\n\nconst aggregatedMissingInformation = [\n  ...(item.compliance?.missing_information || []),\n  ...(item.technical_fit?.missing_information || []),\n  ...(item.financial?.missing_information || []),\n  ...(item.risk?.missing_information || []),\n  ...(item.opportunity?.missing_information || []),\n];\n\n// --- Optional warnings\nconst warnings = [];\n\nif (lowConfidenceCount >= 2) {\n  warnings.push(\"Multiple agents returned low or medium confidence.\");\n}\nif (missingInfoCount >= 4) {\n  warnings.push(\"Tender contains significant missing information.\");\n}\nif (redFlagCount >= 4) {\n  warnings.push(\"Tender contains several red flags across evaluation areas.\");\n}\n\n// --- Final output\nreturn [\n  {\n    json: {\n      ...item,\n\n      final_score: Math.round(finalScore * 100) / 100,\n      ai_decision: aiDecision,\n      decision_reason: decisionReason,\n\n      red_flag_count: redFlagCount,\n      missing_info_count: missingInfoCount,\n      low_confidence_count: lowConfidenceCount,\n\n      aggregated_red_flags: aggregatedRedFlags,\n      aggregated_missing_information: aggregatedMissingInformation,\n      warnings,\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3776,
+        -1744
+      ],
+      "id": "c8951b3a-bb71-4470-96a2-6a68cd0f22da",
+      "name": "Code - Tender Scoring Engine"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $json;\n\nconst joinArray = (value) => {\n  if (Array.isArray(value)) return value.join(\" | \");\n  if (typeof value === \"string\") return value;\n  return \"\";\n};\n\n// SAFELY GET agent (handles naming differences)\nconst getAgent = (name1, name2) => data[name1] || data[name2] || {};\n\nconst compliance = getAgent(\"compliance\");\nconst technical = getAgent(\"technical\", \"technical_fit\");\nconst financial = getAgent(\"financial\");\nconst risk = getAgent(\"risk\");\nconst opportunity = getAgent(\"opportunity\");\n\nreturn [\n  {\n    json: {\n      // Metadata\n      tender_title: data.metadata?.tender_title || \"Not specified\",\n      sector: data.metadata?.sector || \"Not specified\",\n      subsector: data.metadata?.subsector || \"Not specified\",\n      country: data.metadata?.country || \"Not specified\",\n      issuing_entity: data.metadata?.issuing_entity || \"Not specified\",\n      estimated_value: data.metadata?.estimated_value || \"Not specified\",\n      currency: data.metadata?.currency || \"Not specified\",\n      submission_deadline: data.metadata?.submission_deadline || \"Not specified\",\n      language: data.metadata?.language || \"Not specified\",\n      tender_type: data.metadata?.tender_type || \"Not specified\",\n      delivery_location: data.metadata?.delivery_location || \"Not specified\",\n      contract_duration: data.metadata?.contract_duration || \"Not specified\",\n      metadata_summary: data.metadata?.summary || \"\",\n\n      // Compliance\n      compliance_score: compliance.score ?? 0,\n      compliance_status: compliance.status || \"unknown\",\n      compliance_summary: compliance.summary || \"\",\n      compliance_red_flags: joinArray(compliance.red_flags),\n\n      // Technical (FIXED 🔥)\n      technical_score: technical.score ?? 0,\n      technical_status: technical.status || \"unknown\",\n      technical_summary: technical.summary || \"\",\n      technical_red_flags: joinArray(technical.red_flags),\n\n      // Financial\n      financial_score: financial.score ?? 0,\n      financial_status: financial.status || \"unknown\",\n      financial_summary: financial.summary || \"\",\n      financial_red_flags: joinArray(financial.red_flags),\n\n      // Risk\n      risk_score: risk.score ?? 0,\n      risk_status: risk.status || \"unknown\",\n      risk_summary: risk.summary || \"\",\n      risk_red_flags: joinArray(risk.red_flags),\n\n      // Opportunity\n      opportunity_score: opportunity.score ?? 0,\n      opportunity_status: opportunity.status || \"unknown\",\n      opportunity_summary: opportunity.summary || \"\",\n      opportunity_red_flags: joinArray(opportunity.red_flags),\n\n      // Final Decision\n      final_score: data.final_score ?? 0,\n      decision: data.decision || \"REVIEW\",\n      confidence: data.confidence || \"medium\",\n      decision_reason: data.decision_reason || \"No decision reason available.\"\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3984,
+        -1744
+      ],
+      "id": "7f3158cf-2e73-44f5-8ad0-8486445c759f",
+      "name": "Code - Flatten for Report"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\n\nreturn [\n  {\n    json: {\n      metadata: {\n        agent_name: \"Metadata Agent\",\n        tender_title: item.tender_title,\n        sector: item.sector,\n        subsector: item.subsector,\n        country: item.country,\n        issuing_entity: item.issuing_entity,\n        estimated_value: item.estimated_value,\n        currency: item.currency,\n        submission_deadline: item.submission_deadline,\n        language: item.language,\n        tender_type: item.tender_type,\n        delivery_location: item.delivery_location,\n        contract_duration: item.contract_duration,\n        summary: item.summary\n      },\n      compliance: {\n        agent_name: item.agent_name,\n        score: item.score,\n        status: item.status,\n        summary: item.summary,\n        key_signals: item.key_signals || [],\n        red_flags: item.red_flags || [],\n        missing_information: item.missing_information || [],\n        confidence: item.confidence || \"Unknown\"\n      }\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2432,
+        -2656
+      ],
+      "id": "2ca84730-6017-45c7-9624-667284ff51a0",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\n\nreturn [\n  {\n    json: {\n      technical_fit: {\n        agent_name: item.agent_name,\n        score: item.score,\n        status: item.status,\n        summary: item.summary,\n        key_signals: item.key_signals || [],\n        red_flags: item.red_flags || [],\n        missing_information: item.missing_information || [],\n        confidence: item.confidence || \"Unknown\"\n      }\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2160,
+        -2352
+      ],
+      "id": "00e85552-6f57-4679-b17f-cf894d0f2fb8",
+      "name": "Code - Wrap Technical Fit"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2656,
+        -2384
+      ],
+      "id": "a4db4922-1e0e-4f11-aabe-0016ff8dbd99",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\n\nreturn [\n  {\n    json: {\n      financial: {\n        agent_name: item.agent_name,\n        score: item.score,\n        status: item.status,\n        summary: item.summary,\n        key_signals: item.key_signals || [],\n        red_flags: item.red_flags || [],\n        missing_information: item.missing_information || [],\n        confidence: item.confidence || \"Unknown\"\n      }\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2176,
+        -2176
+      ],
+      "id": "e1e0af9b-082b-4edc-8d13-65510f80a27f",
+      "name": "Code - Wrap Financial"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2880,
+        -2192
+      ],
+      "id": "8f488119-711b-4a8e-975b-d1876e275393",
+      "name": "Merge - Add Financial"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\n\nreturn [\n  {\n    json: {\n      risk: {\n        agent_name: item.agent_name,\n        score: item.score,\n        status: item.status,\n        summary: item.summary,\n        key_signals: item.key_signals || [],\n        red_flags: item.red_flags || [],\n        missing_information: item.missing_information || [],\n        confidence: item.confidence || \"Unknown\"\n      }\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        -1920
+      ],
+      "id": "c06f912e-235d-4ac1-b16e-5b91ff9ad879",
+      "name": "Code - Wrap Risk"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        3040,
+        -1968
+      ],
+      "id": "4b9c46bc-7b95-4cd0-8833-a5b9ee97237e",
+      "name": "Merge - Add Risk"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\n\nreturn [\n  {\n    json: {\n      opportunity: {\n        agent_name: item.agent_name,\n        score: item.score,\n        status: item.status,\n        summary: item.summary,\n        key_signals: item.key_signals || [],\n        red_flags: item.red_flags || [],\n        missing_information: item.missing_information || [],\n        confidence: item.confidence || \"Unknown\"\n      }\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        -1712
+      ],
+      "id": "bf3bd36b-3d8f-4fc1-8b9c-0ffd5beb8891",
+      "name": "Code - Wrap Opportunity"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {
+          "includeUnpaired": true
+        }
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        3344,
+        -1744
+      ],
+      "id": "abe3ac21-d4ee-4297-baa2-569a5124d80a",
+      "name": "Merge - Add Opportunity"
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $json.masterText;\n\n// Split into chunks of ~5,000 characters\nconst chunkSize = 5000;\nconst chunks = [];\n\nfor (let i = 0; i < text.length; i += chunkSize) {\n  chunks.push(text.slice(i, i + chunkSize));\n}\n\nreturn chunks.map((chunk, index) => ({\n  json: {\n    chunk,\n    chunk_id: index + 1\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        48,
+        -2144
+      ],
+      "id": "0faeafa1-44f5-466c-b6e2-ae69236ece81",
+      "name": "Split into chunks"
+    },
+    {
+      "parameters": {
+        "jsCode": "const chunk = $json.chunk?.toLowerCase() || \"\";\n\nconst isFinancial =\n  chunk.includes(\"price\") ||\n  chunk.includes(\"bill of quantities\") ||\n  chunk.includes(\"payment\") ||\n  chunk.includes(\"contract price\") ||\n  chunk.includes(\"cost\") ||\n  chunk.includes(\"prix\") ||\n  chunk.includes(\"bordereau\") ||\n  chunk.includes(\"paiement\") ||\n  chunk.includes(\"coût\") ||\n  chunk.includes(\"cout\");\n\nreturn [\n  {\n    json: {\n      ...$json,\n      isFinancial\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1104,
+        -2160
+      ],
+      "id": "9d3eb54e-e836-4350-a81e-66d0b414d734",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "jsCode": "const allChunks = $input.all().map(item => item.json.chunk);\n\n// limit to first ~15,000 characters\nconst fullText = allChunks.join(\"\\n\\n\").slice(0, 15000);\n\nreturn [\n  {\n    json: {\n      full_text: fullText\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        256,
+        -2144
+      ],
+      "id": "99bbac5c-b541-4844-a43d-cdceaed0e855",
+      "name": "Rebuild Full Text"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $json;\n\n// Get agent safely\nconst compliance = data.compliance || {};\nconst technical = data.technical || data.technical_fit || {};\nconst financial = data.financial || {};\nconst risk = data.risk || {};\nconst opportunity = data.opportunity || {};\n\n// Metadata\nconst sector = (data.metadata?.sector || \"\").toLowerCase();\nconst subsector = (data.metadata?.subsector || \"\").toLowerCase();\n\n// Default weights\nlet weights = {\n  compliance: 0.25,\n  technical: 0.25,\n  financial: 0.20,\n  risk: 0.15,\n  opportunity: 0.15\n};\n\n// Sector-specific weighting\nif (\n  sector.includes(\"technology\") ||\n  sector.includes(\"ict\") ||\n  sector.includes(\"information\") ||\n  subsector.includes(\"computer\") ||\n  subsector.includes(\"software\") ||\n  subsector.includes(\"it\")\n) {\n  weights = {\n    compliance: 0.20,\n    technical: 0.35,\n    financial: 0.15,\n    risk: 0.15,\n    opportunity: 0.15\n  };\n}\n\nif (\n  sector.includes(\"construction\") ||\n  sector.includes(\"civil\") ||\n  sector.includes(\"water\") ||\n  sector.includes(\"sanitation\") ||\n  subsector.includes(\"works\")\n) {\n  weights = {\n    compliance: 0.25,\n    technical: 0.30,\n    financial: 0.20,\n    risk: 0.20,\n    opportunity: 0.05\n  };\n}\n\nif (\n  sector.includes(\"supply\") ||\n  sector.includes(\"fourniture\") ||\n  subsector.includes(\"equipment\") ||\n  subsector.includes(\"équipement\")\n) {\n  weights = {\n    compliance: 0.25,\n    technical: 0.20,\n    financial: 0.25,\n    risk: 0.15,\n    opportunity: 0.15\n  };\n}\n\nif (\n  sector.includes(\"service\") ||\n  subsector.includes(\"consulting\") ||\n  subsector.includes(\"maintenance\")\n) {\n  weights = {\n    compliance: 0.25,\n    technical: 0.25,\n    financial: 0.15,\n    risk: 0.15,\n    opportunity: 0.20\n  };\n}\n\n// Scores\nconst complianceScore = Number(compliance.score || 0);\nconst technicalScore = Number(technical.score || 0);\nconst financialScore = Number(financial.score || 0);\nconst riskScore = Number(risk.score || 0);\nconst opportunityScore = Number(opportunity.score || 0);\n\n// Count issues\nconst countArray = (value) => Array.isArray(value) ? value.length : 0;\n\nconst complianceRedFlags = countArray(compliance.red_flags);\nconst technicalRedFlags = countArray(technical.red_flags);\nconst financialRedFlags = countArray(financial.red_flags);\nconst riskRedFlags = countArray(risk.red_flags);\nconst opportunityRedFlags = countArray(opportunity.red_flags);\n\nconst totalRedFlags =\n  complianceRedFlags +\n  technicalRedFlags +\n  financialRedFlags +\n  riskRedFlags +\n  opportunityRedFlags;\n\nconst totalMissingInfo =\n  countArray(compliance.missing_information) +\n  countArray(technical.missing_information) +\n  countArray(financial.missing_information) +\n  countArray(risk.missing_information) +\n  countArray(opportunity.missing_information);\n\n// Base weighted score\nlet finalScore =\n  complianceScore * weights.compliance +\n  technicalScore * weights.technical +\n  financialScore * weights.financial +\n  riskScore * weights.risk +\n  opportunityScore * weights.opportunity;\n\n// Smart penalties\nlet penalty = 0;\n\npenalty += totalRedFlags * 2;\npenalty += totalMissingInfo * 1;\n\n// Critical score penalties\nif (complianceScore < 50) penalty += 15;\nif (technicalScore < 50) penalty += 12;\nif (financialScore < 45) penalty += 10;\nif (riskScore < 45) penalty += 12;\n\n// Risk cap\npenalty = Math.min(penalty, 30);\n\nfinalScore = finalScore - penalty;\nfinalScore = Math.max(0, Math.min(100, finalScore));\n\n// Decision logic\nlet decision = \"REVIEW\";\n\nif (\n  finalScore >= 75 &&\n  complianceScore >= 65 &&\n  technicalScore >= 65 &&\n  riskScore >= 55 &&\n  totalRedFlags <= 4\n) {\n  decision = \"GO\";\n}\n\nif (\n  finalScore < 50 ||\n  complianceScore < 45 ||\n  technicalScore < 45 ||\n  riskScore < 40 ||\n  totalRedFlags >= 8\n) {\n  decision = \"NO-GO\";\n}\n\n// Confidence logic\nlet confidence = \"medium\";\n\nif (\n  totalMissingInfo <= 3 &&\n  totalRedFlags <= 4 &&\n  complianceScore > 60 &&\n  technicalScore > 60\n) {\n  confidence = \"high\";\n}\n\nif (\n  totalMissingInfo >= 6 ||\n  totalRedFlags >= 7 ||\n  complianceScore < 50 ||\n  technicalScore < 50\n) {\n  confidence = \"low\";\n}\n\n// Executive reason\nconst decisionReason = `\nThis tender was evaluated using a sector-adjusted scoring model.\n\nSector detected: ${data.metadata?.sector || \"Not specified\"}\nSubsector detected: ${data.metadata?.subsector || \"Not specified\"}\n\nWeighted Evaluation:\n- Compliance: ${complianceScore}/100\n- Technical Fit: ${technicalScore}/100\n- Financial Value: ${financialScore}/100\n- Risk Position: ${riskScore}/100\n- Business Opportunity: ${opportunityScore}/100\n\nRisk Adjustment:\n- Total red flags identified: ${totalRedFlags}\n- Missing information items: ${totalMissingInfo}\n- Penalty applied: ${penalty} points\n\nFinal Score: ${Math.round(finalScore)}/100\nFinal Recommendation: ${decision}\n\nBusiness Interpretation:\n${\n  decision === \"GO\"\n    ? \"The tender appears attractive and reasonably manageable. The company may proceed, subject to final human review and pricing validation.\"\n    : decision === \"REVIEW\"\n    ? \"The tender has potential, but there are important gaps or risks that should be reviewed before committing resources.\"\n    : \"The tender presents weak alignment, major compliance or technical concerns, or excessive risk. It is not recommended to proceed without major clarification.\"\n}\n`;\n\nreturn [\n  {\n    json: {\n      ...data,\n      scoring_model: \"Sector-Weighted V2\",\n      scoring_weights: weights,\n      final_score: Math.round(finalScore),\n      decision,\n      confidence,\n      total_red_flags: totalRedFlags,\n      total_missing_information: totalMissingInfo,\n      penalty_applied: penalty,\n      decision_reason: decisionReason.trim()\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3552,
+        -1744
+      ],
+      "id": "d364372a-51cd-43e7-a93b-15d74a62c574",
+      "name": "Final Scoring Engine"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Prepare Master Tender Text": {
+      "main": [
+        [
+          {
+            "node": "Split into chunks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean Extracted Text": {
+      "main": [
+        [
+          {
+            "node": "Normalize Language Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Extracted Text": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Language Input": {
+      "main": [
+        [
+          {
+            "node": "Prepare Master Tender Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive Trigger": {
+      "main": [
+        [
+          {
+            "node": "Download file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download file": {
+      "main": [
+        [
+          {
+            "node": "Upload PDF to PDF.co",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract PDF Text": {
+      "main": [
+        [
+          {
+            "node": "Download TXT Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload PDF to PDF.co": {
+      "main": [
+        [
+          {
+            "node": "Extract PDF Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download TXT Result": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Check Extracted Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Clean Extracted Text",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "PDF.co OCR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build HTML Report": {
+      "main": [
+        [
+          {
+            "node": "Convert HTML to PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert HTML to PDF": {
+      "main": [
+        [
+          {
+            "node": "Download Generated PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Generated PDF": {
+      "main": [
+        [
+          {
+            "node": "Email Tender Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Metadata Agent": {
+      "main": [
+        [
+          {
+            "node": "Parse Metadata JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compliance Agent": {
+      "main": [
+        [
+          {
+            "node": "Parse Compliance JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Technical Fit Agent": {
+      "main": [
+        [
+          {
+            "node": "Parse Technical Fit JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Financial Agent": {
+      "main": [
+        [
+          {
+            "node": "Parse Financial JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Risk Agent": {
+      "main": [
+        [
+          {
+            "node": "Parse Risk JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Opportunity Agent": {
+      "main": [
+        [
+          {
+            "node": "Parse Opportunity JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Metadata JSON": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Compliance JSON": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Parse Technical Fit JSON": {
+      "main": [
+        [
+          {
+            "node": "Code - Wrap Technical Fit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Financial JSON": {
+      "main": [
+        [
+          {
+            "node": "Code - Wrap Financial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Risk JSON": {
+      "main": [
+        [
+          {
+            "node": "Code - Wrap Risk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Opportunity JSON": {
+      "main": [
+        [
+          {
+            "node": "Code - Wrap Opportunity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Tender Scoring Engine": {
+      "main": [
+        [
+          {
+            "node": "Code - Flatten for Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Flatten for Report": {
+      "main": [
+        [
+          {
+            "node": "Build HTML Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Wrap Technical Fit": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Merge - Add Financial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Wrap Financial": {
+      "main": [
+        [
+          {
+            "node": "Merge - Add Financial",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge - Add Financial": {
+      "main": [
+        [
+          {
+            "node": "Merge - Add Risk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Wrap Risk": {
+      "main": [
+        [
+          {
+            "node": "Merge - Add Risk",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge - Add Risk": {
+      "main": [
+        [
+          {
+            "node": "Merge - Add Opportunity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Wrap Opportunity": {
+      "main": [
+        [
+          {
+            "node": "Merge - Add Opportunity",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge - Add Opportunity": {
+      "main": [
+        [
+          {
+            "node": "Final Scoring Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split into chunks": {
+      "main": [
+        [
+          {
+            "node": "Rebuild Full Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Financial Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rebuild Full Text": {
+      "main": [
+        [
+          {
+            "node": "Metadata Agent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Compliance Agent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Technical Fit Agent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Risk Agent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Opportunity Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final Scoring Engine": {
+      "main": [
+        [
+          {
+            "node": "Code - Tender Scoring Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "04dfd1f4-f525-4c21-bc1f-7087f6492087",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b8a226a3dc722acca4bf3ed7cbc8976fef593e8066a79b8d8090cf00e3c4a2c5"
+  },
+  "id": "lwSKB5uoETEqR1wF",
+  "tags": []
+}
