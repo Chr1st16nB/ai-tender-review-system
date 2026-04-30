@@ -8,8 +8,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -160,
-        -2144
+        -464,
+        -2176
       ],
       "id": "0896a2b4-7f70-4766-8ede-9258c7f3fbe4",
       "name": "Prepare Master Tender Text"
@@ -31,8 +31,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -448,
-        -2368
+        -752,
+        -2400
       ],
       "id": "1a660fd0-6d39-4a43-943f-d4de99303ac3",
       "name": "Clean Extracted Text"
@@ -44,8 +44,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -896,
-        -2192
+        -1200,
+        -2224
       ],
       "id": "1af6a9d9-1355-4a51-bfcc-2cb721ff2e90",
       "name": "Check Extracted Text"
@@ -79,8 +79,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        -384,
-        -1984
+        -688,
+        -2016
       ],
       "id": "68d2b18c-adcc-45a5-beb5-36857753b630",
       "name": "PDF.co OCR"
@@ -92,8 +92,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -224,
-        -2368
+        -528,
+        -2400
       ],
       "id": "669be3b6-43a8-4d5a-8742-11f011b27d95",
       "name": "Normalize Language Input"
@@ -115,8 +115,8 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        4864,
-        -1744
+        4144,
+        -1776
       ],
       "id": "4a85cc3b-b01d-44cc-8849-3480efff0ae5",
       "name": "Email Tender Report",
@@ -127,21 +127,6 @@
           "name": "Gmail OAuth2 API"
         }
       }
-    },
-    {
-      "parameters": {
-        "content": "AI Tender Review System (V1)\n\nPurpose:\nAutomate tender analysis and decision-making.\n\nInput:\nTender document (PDF)\n\nOutput:\nExecutive report + Go/No-Go decision\n\nSupported languages:\nFR / EN",
-        "height": 256,
-        "width": 352
-      },
-      "type": "n8n-nodes-base.stickyNote",
-      "position": [
-        -1600,
-        -3296
-      ],
-      "typeVersion": 1,
-      "id": "ce9addfe-7eff-4035-bd17-3561fa1713f9",
-      "name": "Sticky Note"
     },
     {
       "parameters": {
@@ -166,8 +151,8 @@
       "type": "n8n-nodes-base.googleDriveTrigger",
       "typeVersion": 1,
       "position": [
-        -1888,
-        -2464
+        -1824,
+        -2480
       ],
       "id": "c1bb63b3-01f4-4899-8a12-a5648cc69127",
       "name": "Google Drive Trigger",
@@ -193,8 +178,8 @@
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
       "position": [
-        -1712,
-        -2464
+        -1648,
+        -2480
       ],
       "id": "b53716ea-c8ec-486d-ba7a-88c713023709",
       "name": "Download file",
@@ -226,8 +211,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        -1328,
-        -2464
+        -1264,
+        -2480
       ],
       "id": "404f671c-8708-4cf1-aebd-db2fb070918f",
       "name": "Extract PDF Text"
@@ -265,8 +250,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        -1536,
-        -2464
+        -1472,
+        -2480
       ],
       "id": "e2b91cec-1b15-46c4-8a4e-2bf3595136b8",
       "name": "Upload PDF to PDF.co"
@@ -286,8 +271,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        -1120,
-        -2464
+        -1056,
+        -2480
       ],
       "id": "755605ce-c22c-4762-8d4f-619abe161edb",
       "name": "Download TXT Result"
@@ -299,8 +284,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1120,
-        -2176
+        -1424,
+        -2208
       ],
       "id": "9c358e7b-10d6-42e5-9548-ea2386df91d9",
       "name": "Code in JavaScript1"
@@ -365,8 +350,8 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.4,
       "position": [
-        -688,
-        -2192
+        -992,
+        -2224
       ],
       "id": "17e2b437-0f86-4c43-b359-633976c8c96d",
       "name": "Switch"
@@ -378,8 +363,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4224,
-        -1744
+        3536,
+        -1776
       ],
       "id": "e1d2c690-7a4c-4142-9fb8-f8a644dee159",
       "name": "Build HTML Report"
@@ -409,8 +394,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        4432,
-        -1744
+        3712,
+        -1776
       ],
       "id": "dd34d5c8-e050-41d6-9693-56948d130342",
       "name": "Convert HTML to PDF"
@@ -429,8 +414,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        4656,
-        -1744
+        3936,
+        -1776
       ],
       "id": "e433739e-0423-4950-9ada-d8e55a1a05a1",
       "name": "Download Generated PDF"
@@ -456,8 +441,8 @@
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 2.1,
       "position": [
-        1456,
-        -2720
+        640,
+        -2752
       ],
       "id": "8319e6a8-7f03-48fd-8b7c-462466d68c71",
       "name": "Metadata Agent",
@@ -489,8 +474,8 @@
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 2.1,
       "position": [
-        1440,
-        -2528
+        624,
+        -2560
       ],
       "id": "422c4be2-6d73-4857-be70-c694dfa3231c",
       "name": "Compliance Agent",
@@ -522,8 +507,8 @@
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 2.1,
       "position": [
-        1392,
-        -2352
+        576,
+        -2384
       ],
       "id": "d5a6534e-3785-4bad-a2b2-c24d3c063192",
       "name": "Technical Fit Agent",
@@ -555,8 +540,8 @@
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 2.1,
       "position": [
-        1392,
-        -2160
+        576,
+        -2192
       ],
       "id": "bca5191e-94c2-449a-955f-c58bd305354c",
       "name": "Financial Agent",
@@ -588,8 +573,8 @@
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 2.1,
       "position": [
-        1392,
-        -1920
+        576,
+        -1952
       ],
       "id": "9dae1935-4734-4e95-b540-cd9d0e5fa219",
       "name": "Risk Agent",
@@ -621,8 +606,8 @@
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 2.1,
       "position": [
-        1392,
-        -1712
+        576,
+        -1744
       ],
       "id": "47114b2a-454a-4b77-b12d-fab91ef6dce9",
       "name": "Opportunity Agent",
@@ -642,8 +627,8 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        2192,
-        -2656
+        1376,
+        -2688
       ],
       "id": "c0bd94dd-c49e-44c3-836f-035b348249ca",
       "name": "Merge"
@@ -655,8 +640,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1952,
-        -2736
+        1136,
+        -2768
       ],
       "id": "d7c5ecac-54fc-4236-9d03-c201e55b726d",
       "name": "Parse Metadata JSON"
@@ -668,8 +653,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1936,
-        -2544
+        1120,
+        -2576
       ],
       "id": "cf782657-4f03-43d5-a8d3-67d4828f1ed6",
       "name": "Parse Compliance JSON"
@@ -681,8 +666,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1936,
-        -2352
+        1120,
+        -2384
       ],
       "id": "e6c7dc25-8397-4375-a5c3-c4e3e6cf5e98",
       "name": "Parse Technical Fit JSON"
@@ -694,8 +679,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1856,
-        -2160
+        1040,
+        -2192
       ],
       "id": "45cdfc12-9815-48de-a2c4-9f4903472c84",
       "name": "Parse Financial JSON"
@@ -707,8 +692,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1792,
-        -1920
+        976,
+        -1952
       ],
       "id": "bb470d56-666b-4094-9ca3-1f31cb9a0884",
       "name": "Parse Risk JSON"
@@ -720,8 +705,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1792,
-        -1712
+        976,
+        -1744
       ],
       "id": "afd82b21-66ba-4d65-8776-1785153b1a7b",
       "name": "Parse Opportunity JSON"
@@ -733,8 +718,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3776,
-        -1744
+        2848,
+        -1776
       ],
       "id": "c8951b3a-bb71-4470-96a2-6a68cd0f22da",
       "name": "Code - Tender Scoring Engine"
@@ -746,8 +731,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3984,
-        -1744
+        3312,
+        -1776
       ],
       "id": "7f3158cf-2e73-44f5-8ad0-8486445c759f",
       "name": "Code - Flatten for Report"
@@ -759,8 +744,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2432,
-        -2656
+        1504,
+        -2688
       ],
       "id": "2ca84730-6017-45c7-9624-667284ff51a0",
       "name": "Code in JavaScript"
@@ -772,8 +757,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2160,
-        -2352
+        1344,
+        -2384
       ],
       "id": "00e85552-6f57-4679-b17f-cf894d0f2fb8",
       "name": "Code - Wrap Technical Fit"
@@ -787,8 +772,8 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        2656,
-        -2384
+        1728,
+        -2416
       ],
       "id": "a4db4922-1e0e-4f11-aabe-0016ff8dbd99",
       "name": "Merge1"
@@ -800,8 +785,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2176,
-        -2176
+        1360,
+        -2208
       ],
       "id": "e1e0af9b-082b-4edc-8d13-65510f80a27f",
       "name": "Code - Wrap Financial"
@@ -815,8 +800,8 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        2880,
-        -2192
+        1952,
+        -2224
       ],
       "id": "8f488119-711b-4a8e-975b-d1876e275393",
       "name": "Merge - Add Financial"
@@ -828,8 +813,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2000,
-        -1920
+        1184,
+        -1952
       ],
       "id": "c06f912e-235d-4ac1-b16e-5b91ff9ad879",
       "name": "Code - Wrap Risk"
@@ -843,8 +828,8 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        3040,
-        -1968
+        2112,
+        -2000
       ],
       "id": "4b9c46bc-7b95-4cd0-8833-a5b9ee97237e",
       "name": "Merge - Add Risk"
@@ -856,8 +841,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2000,
-        -1712
+        1184,
+        -1744
       ],
       "id": "bf3bd36b-3d8f-4fc1-8b9c-0ffd5beb8891",
       "name": "Code - Wrap Opportunity"
@@ -873,8 +858,8 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        3344,
-        -1744
+        2416,
+        -1776
       ],
       "id": "abe3ac21-d4ee-4297-baa2-569a5124d80a",
       "name": "Merge - Add Opportunity"
@@ -886,8 +871,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        48,
-        -2144
+        -256,
+        -2176
       ],
       "id": "0faeafa1-44f5-466c-b6e2-ae69236ece81",
       "name": "Split into chunks"
@@ -899,8 +884,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1104,
-        -2160
+        288,
+        -2192
       ],
       "id": "9d3eb54e-e836-4350-a81e-66d0b414d734",
       "name": "Code in JavaScript2"
@@ -912,8 +897,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        256,
-        -2144
+        -48,
+        -2176
       ],
       "id": "99bbac5c-b541-4844-a43d-cdceaed0e855",
       "name": "Rebuild Full Text"
@@ -925,11 +910,24 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3552,
-        -1744
+        2624,
+        -1776
       ],
       "id": "d364372a-51cd-43e7-a93b-15d74a62c574",
       "name": "Final Scoring Engine"
+    },
+    {
+      "parameters": {
+        "jsCode": "const score = $json.final_score;\nconst compliance = $json.compliance_score;\nconst risk = $json.risk_score;\n\nlet decision = \"\";\nlet reason = \"\";\nlet trigger = [];\n\nif (compliance < 70) {\n  decision = \"NO-GO\";\n  trigger.push(\"Low compliance\");\n}\n\nif (risk >= 80) {\n  decision = \"NO-GO\";\n  trigger.push(\"High risk\");\n}\n\nif (!decision) {\n  if (score >= 75) {\n    decision = \"GO\";\n    trigger.push(\"Strong overall score\");\n  } else if (score >= 60) {\n    decision = \"REVIEW\";\n    trigger.push(\"Moderate score\");\n  } else {\n    decision = \"NO-GO\";\n    trigger.push(\"Low score\");\n  }\n}\n\nreason = `Decision based on: ${trigger.join(\", \")}`;\n\nreturn [{\n  json: {\n    ...$json,\n    ai_decision: decision,\n    decision_reason: reason,\n    decision_triggers: trigger\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3072,
+        -1776
+      ],
+      "id": "b4504df3-05f6-4e4f-9244-85e8e7b59503",
+      "name": "Decision Explanation Block"
     }
   ],
   "pinData": {},
@@ -1242,7 +1240,7 @@
       "main": [
         [
           {
-            "node": "Code - Flatten for Report",
+            "node": "Decision Explanation Block",
             "type": "main",
             "index": 0
           }
@@ -1427,6 +1425,17 @@
           }
         ]
       ]
+    },
+    "Decision Explanation Block": {
+      "main": [
+        [
+          {
+            "node": "Code - Flatten for Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,
@@ -1435,7 +1444,7 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "04dfd1f4-f525-4c21-bc1f-7087f6492087",
+  "versionId": "17c2a525-fff0-4a79-bbf1-07bcb320536e",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "b8a226a3dc722acca4bf3ed7cbc8976fef593e8066a79b8d8090cf00e3c4a2c5"
